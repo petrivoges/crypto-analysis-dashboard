@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crypto Analysis Dashboard</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Use Chart.js instead of lightweight-charts to avoid CSP issues -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js for charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -25,11 +26,6 @@
                     <option value="BNBUSDT">BNBUSDT</option>
                     <option value="ADAUSDT">ADAUSDT</option>
                     <option value="SOLUSDT">SOLUSDT</option>
-                    <option value="DOTUSDT">DOTUSDT</option>
-                    <option value="AVAXUSDT">AVAXUSDT</option>
-                    <option value="MATICUSDT">MATICUSDT</option>
-                    <option value="LINKUSDT">LINKUSDT</option>
-                    <option value="UNIUSDT">UNIUSDT</option>
                 </select>
             </div>
             <div class="control-group">
@@ -47,22 +43,17 @@
             </button>
         </div>
 
-        <div id="cors-alert" class="alert alert-warning" style="display: none;">
+        <div id="cors-alert" class="alert alert-warning">
             <i class="fas fa-exclamation-triangle"></i>
-            <p>Due to CORS restrictions, we're using simulated data instead of live Binance data. This is a limitation of running on GitHub Pages.</p>
+            <p>Using simulated data for demonstration purposes. In a production environment, you would connect to real market data.</p>
         </div>
 
-        <div id="error-alert" class="alert alert-error" style="display: none;">
-            <i class="fas fa-exclamation-triangle"></i>
-            <p id="error-message">Failed to load market data. Please try again later.</p>
-        </div>
-
-        <div id="loading" class="loading-container">
+        <div id="loading" class="loading-container" style="display: none;">
             <div class="loading-spinner"></div>
             <p>Loading market data...</p>
         </div>
 
-        <div id="dashboard-content" style="display: none;">
+        <div id="dashboard-content">
             <div class="cards-container">
                 <div class="card">
                     <div class="card-header">
@@ -98,8 +89,8 @@
                     </div>
                     <div class="card-content">
                         <div class="roi-container">
-                            <span id="roi-value" class="roi-value">0.00%</span>
-                            <i id="roi-icon" class="fas fa-minus"></i>
+                            <span id="roi-value" class="roi-value">2.35%</span>
+                            <i id="roi-icon" class="fas fa-arrow-up" style="color: var(--success);"></i>
                         </div>
                         <p class="description">Based on current market conditions</p>
                     </div>
@@ -158,7 +149,7 @@
 
             <div class="info-box">
                 <i class="fas fa-info-circle"></i>
-                <p id="info-message">This analysis is based on technical indicators and historical patterns. Always combine with fundamental analysis and risk management for better results.</p>
+                <p id="info-message">This analysis is based on simulated data for demonstration purposes. Always combine with fundamental analysis and risk management for better results.</p>
             </div>
         </div>
 
