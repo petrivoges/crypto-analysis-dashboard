@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Analysis Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Crypto Analysis Dashboard</h1>
+            <p class="subtitle">Analyze cryptocurrency markets for potential trading opportunities</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="symbol-select">Trading Pair:</label>
+                <select id="symbol-select">
+                    <option value="BTCUSDT">BTCUSDT</option>
+                    <option value="ETHUSDT">ETHUSDT</option>
+                    <option value="BNBUSDT">BNBUSDT</option>
+                    <option value="ADAUSDT">ADAUSDT</option>
+                    <option value="SOLUSDT">SOLUSDT</option>
+                    <option value="DOTUSDT">DOTUSDT</option>
+                    <option value="AVAXUSDT">AVAXUSDT</option>
+                    <option value="MATICUSDT">MATICUSDT</option>
+                    <option value="LINKUSDT">LINKUSDT</option>
+                    <option value="UNIUSDT">UNIUSDT</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="timeframe-select">Timeframe:</label>
+                <select id="timeframe-select">
+                    <option value="5m">5 minutes</option>
+                    <option value="15m">15 minutes</option>
+                    <option value="1h">1 hour</option>
+                    <option value="4h" selected>4 hours</option>
+                    <option value="1d">1 day</option>
+                </select>
+            </div>
+            <button id="refresh-btn" class="btn">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+
+        <div id="cors-alert" class="alert alert-warning" style="display: none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p>Due to CORS restrictions, we're using simulated data instead of live Binance data. This is a limitation of running on GitHub Pages.</p>
+        </div>
+
+        <div id="error-alert" class="alert alert-error" style="display: none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p id="error-message">Failed to load market data. Please try again later.</p>
+        </div>
+
+        <div id="loading" class="loading-container">
+            <div class="loading-spinner"></div>
+            <p>Loading market data...</p>
+        </div>
+
+        <div id="dashboard-content" style="display: none;">
+            <div class="cards-container">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Market Sentiment</h3>
+                    </div>
+                    <div class="card-content">
+                        <div id="sentiment-badge" class="badge">
+                            <i class="fas fa-chart-line"></i>
+                            <span id="sentiment-text">Neutral</span>
+                        </div>
+                        <p id="sentiment-description" class="description">Analyzing market sentiment...</p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Signal Strength</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="progress-container">
+                            <div id="signal-strength-bar" class="progress-bar" style="width: 50%"></div>
+                        </div>
+                        <div class="strength-value">
+                            <span id="signal-strength-value">50</span>%
+                        </div>
+                        <p id="signal-description" class="description">Analyzing signal strength...</p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Potential ROI</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="roi-container">
+                            <span id="roi-value" class="roi-value">0.00%</span>
+                            <i id="roi-icon" class="fas fa-minus"></i>
+                        </div>
+                        <p class="description">Based on current market conditions</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tabs-container">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="chart">Price Chart</button>
+                    <button class="tab-btn" data-tab="indicators">Technical Indicators</button>
+                    <button class="tab-btn" data-tab="signals">Trading Signals</button>
+                </div>
+                
+                <div class="tab-content active" id="chart-tab">
+                    <div class="card full-width">
+                        <div class="card-header">
+                            <h3>Price Chart</h3>
+                            <p class="subtitle" id="chart-subtitle">BTCUSDT price chart with key support and resistance levels</p>
+                        </div>
+                        <div class="card-content">
+                            <div id="price-chart" class="chart-container"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="indicators-tab">
+                    <div class="card full-width">
+                        <div class="card-header">
+                            <h3>Technical Indicators</h3>
+                            <p class="subtitle">Key technical indicators and their current values</p>
+                        </div>
+                        <div class="card-content">
+                            <div id="indicators-grid" class="indicators-grid">
+                                <!-- Indicators will be inserted here by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="signals-tab">
+                    <div class="card full-width">
+                        <div class="card-header">
+                            <h3>Trading Signals</h3>
+                            <p class="subtitle">Recent buy and sell signals based on technical analysis</p>
+                        </div>
+                        <div class="card-content">
+                            <div id="signals-list" class="signals-list">
+                                <!-- Signals will be inserted here by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <i class="fas fa-info-circle"></i>
+                <p id="info-message">This analysis is based on technical indicators and historical patterns. Always combine with fundamental analysis and risk management for better results.</p>
+            </div>
+        </div>
+
+        <footer>
+            <p>Disclaimer: This tool is for informational purposes only. Cryptocurrency trading involves significant risk. Past performance is not indicative of future results.</p>
+        </footer>
+    </div>
+
+    <script src="js/technical-indicators.js"></script>
+    <script src="js/market-analysis.js"></script>
+    <script src="js/chart-handler.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
