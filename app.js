@@ -824,56 +824,57 @@ $(document).ready(() => {
   // Create price chart
   function createPriceChart(canvas, data) {
     if (!data || data.length === 0) {
-      console.error("No data to create price chart")
-      return null
+      console.error("No data to create price chart");
+      return null;
     }
-
-    const ctx = canvas.getContext("2d")
-
+  
+    const ctx = canvas.getContext("2d");
+  
     // Format data for Chart.js
     const labels = data.map((d) => {
-      const date = new Date(d.time)
-      return date.toLocaleTimeString()
-    })
-
-    const prices = data.map((d) => d.close)
-    const sma20 = data.map((d) => d.sma20)
-    const sma50 = data.map((d) => d.sma50)
-
+      const date = new Date(d.time);
+      return date.toLocaleTimeString();
+    });
+  
+    const prices = data.map((d) => d.close);
+    const sma20 = data.map((d) => d.sma20);
+    const sma50 = data.map((d) => d.sma50);
+  
     // Value Area lines (horizontal)
-    const valueAreaLow = data[0].valueAreaLow
-    const valueAreaHigh = data[0].valueAreaHigh
-
-    const annotations = {}
+    const valueAreaLow = data[0].valueAreaLow;
+    const valueAreaHigh = data[0].valueAreaHigh;
+  
+    // Define annotations conditionally
+    const annotations = {};
     if (valueAreaLow !== null && valueAreaLow !== undefined) {
-        annotations.valueAreaLow = {
-            type: "line",
-            yMin: valueAreaLow,
-            yMax: valueAreaLow,
-            borderColor: "rgba(255, 0, 0, 0.5)",
-            borderWidth: 1,
-            label: {
-                content: "VAL: " + (valueAreaLow ? valueAreaLow.toFixed(2) : "N/A"),
-                enabled: true,
-                position: "start",
-            },
-        }
+      annotations.valueAreaLow = {
+        type: "line",
+        yMin: valueAreaLow,
+        yMax: valueAreaLow,
+        borderColor: "rgba(255, 0, 0, 0.5)",
+        borderWidth: 1,
+        label: {
+          content: "VAL: " + valueAreaLow.toFixed(2),
+          enabled: true,
+          position: "start",
+        },
+      };
     }
     if (valueAreaHigh !== null && valueAreaHigh !== undefined) {
-        annotations.valueAreaHigh = {
-            type: "line",
-            yMin: valueAreaHigh,
-            yMax: valueAreaHigh,
-            borderColor: "rgba(0, 128, 0, 0.5)",
-            borderWidth: 1,
-            label: {
-                content: "VAH: " + (valueAreaHigh ? valueAreaHigh.toFixed(2) : "N/A"),
-                enabled: true,
-                position: "start",
-            },
-        }
+      annotations.valueAreaHigh = {
+        type: "line",
+        yMin: valueAreaHigh,
+        yMax: valueAreaHigh,
+        borderColor: "rgba(0, 128, 0, 0.5)",
+        borderWidth: 1,
+        label: {
+          content: "VAH: " + valueAreaHigh.toFixed(2),
+          enabled: true,
+          position: "start",
+        },
+      };
     }
-
+  
     // Create chart
     priceChart = new Chart(ctx, {
       type: "line",
@@ -912,12 +913,6 @@ $(document).ready(() => {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-          // other plugins
-          annotation: {
-              annotations: annotations,
-          },
-        },
         scales: {
           x: {
             ticks: {
@@ -946,40 +941,15 @@ $(document).ready(() => {
             intersect: false,
           },
           annotation: {
-            annotations: {
-              valueAreaLow: {
-                type: "line",
-                yMin: valueAreaLow,
-                yMax: valueAreaLow,
-                borderColor: "rgba(255, 0, 0, 0.5)",
-                borderWidth: 1,
-                label: {
-                  content: "VAL: " + (valueAreaLow ? valueAreaLow.toFixed(2) : "N/A"),
-                  enabled: true,
-                  position: "start",
-                },
-              },
-              valueAreaHigh: {
-                type: "line",
-                yMin: valueAreaHigh,
-                yMax: valueAreaHigh,
-                borderColor: "rgba(0, 128, 0, 0.5)",
-                borderWidth: 1,
-                label: {
-                  content: "VAH: " + (valueAreaHigh ? valueAreaHigh.toFixed(2) : "N/A"),
-                  enabled: true,
-                  position: "start",
-                },
-              },
-            },
+            annotations: annotations,
           },
         },
       },
-    })
-
-    return priceChart
+    });
+  
+    return priceChart;
   }
-
+  
   // Render technical indicators
   function renderIndicators($container, data) {
     if (!data || data.length === 0) {
