@@ -844,6 +844,36 @@ $(document).ready(() => {
     const valueAreaLow = data[0].valueAreaLow
     const valueAreaHigh = data[0].valueAreaHigh
 
+    const annotations = {}
+    if (valueAreaLow !== null && valueAreaLow !== undefined) {
+        annotations.valueAreaLow = {
+            type: "line",
+            yMin: valueAreaLow,
+            yMax: valueAreaLow,
+            borderColor: "rgba(255, 0, 0, 0.5)",
+            borderWidth: 1,
+            label: {
+                content: "VAL: " + (valueAreaLow ? valueAreaLow.toFixed(2) : "N/A"),
+                enabled: true,
+                position: "start",
+            },
+        }
+    }
+    if (valueAreaHigh !== null && valueAreaHigh !== undefined) {
+        annotations.valueAreaHigh = {
+            type: "line",
+            yMin: valueAreaHigh,
+            yMax: valueAreaHigh,
+            borderColor: "rgba(0, 128, 0, 0.5)",
+            borderWidth: 1,
+            label: {
+                content: "VAH: " + (valueAreaHigh ? valueAreaHigh.toFixed(2) : "N/A"),
+                enabled: true,
+                position: "start",
+            },
+        }
+    }
+
     // Create chart
     priceChart = new Chart(ctx, {
       type: "line",
