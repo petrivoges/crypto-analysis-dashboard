@@ -885,16 +885,16 @@ $(document).ready(() => {
             label: "Price",
             data: prices,
             borderColor: "#0d6efd",
-            backgroundcolor: "rgbA(13, 110, 253, 0.1)",
-            borderwidth: 2,
+            backgroundColor: "rgba(13, 110, 253, 0.1)",
+            borderWidth: 2,
             fill: false,
             tension: 0.1,
           },
           {
             label: "SMA 20",
             data: sma20,
-            bordercolor: "#10b981",
-            borderwidth: 1.5,
+            borderColor: "#10b981",
+            borderWidth: 1.5,
             borderDash: [5, 5],
             fill: false,
             pointRadius: 0,
@@ -902,8 +902,8 @@ $(document).ready(() => {
           {
             label: "SMA 50",
             data: sma50,
-            bordercolor: "#f59e0b",
-            borderwidth: 1.5,
+            borderColor: "#f59e0b",
+            borderWidth: 1.5,
             borderDash: [5, 5],
             fill: false,
             pointRadius: 0,
@@ -925,14 +925,24 @@ $(document).ready(() => {
           y: {
             position: "right",
             grid: {
-              color: "rgbA(0, 0, 0, 0.05)",
+              color: "rgba(0, 0, 0, 0.05)",
             },
           },
         },
         plugins: {
-          annotation: {
-            annotations: annotations,
+          legend: {
+            position: "top",
+            labels: {
+              boxWidth: 12,
+            },
           },
+          tooltip: {
+            mode: "index",
+            intersect: false,
+          },
+          // annotation: {
+          //   annotations: annotations,
+          // },
         },
       },
     });
