@@ -1,6 +1,3 @@
-import { Chart } from "@/components/ui/chart"
-import $ from "jquery" // Import jQuery
-
 // Crypto Analysis Dashboard - Main JavaScript
 $(document).ready(() => {
   // DOM elements using jQuery
