@@ -88,21 +88,31 @@ $(document).ready(() => {
   }
 
   // Fetch klines data from Binance API with CORS proxy
-  async function fetchKlines(symbol, interval) {
-    const limit = 1000;
-    const url = `https://cors-anywhere.herokuapp.com/https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Failed to fetch klines for ${symbol}`);
-    const data = await response.json();
-    return data.map((d) => ({
-      openTime: d[0],
-      open: parseFloat(d[1]),
-      high: parseFloat(d[2]),
-      low: parseFloat(d[3]),
-      close: parseFloat(d[4]),
-      volume: parseFloat(d[5]),
-    }));
-  }
+  async function fetchKlines(coin, interval, date) {
+    const startTime = new Date(date + 'T00:00:00Z').getTime();
+    const endTime = startTime + 86400000; // 24 hours
+    let allKlines = [];
+    let lastTime = startTime;
+
+    while (true) {
+        const url = `https://api.binance.com/api/v3/klines?symbol=${coin}&interval=${interval}&startTime=${lastTime}&endTime=${endTime}&limit=1000`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Failed to fetch klines for ${coin} on ${date}: ${response.status}`);
+        const data = await response.json();
+        if (data.length === 0) break;
+        allKlines = allKlines.concat(data.map(d => ({
+            open: parseFloat(d[1]),
+            high: parseFloat(d[2]),
+            close: parseFloat(d[4]),
+            volume: parseFloat(d[5]),
+            openTime: d[0], // milliseconds
+            closeTime: d[6] // milliseconds
+        })));
+        lastTime = data[data.length - 1][6] + 1; // Next start time (close time + 1ms)
+        await new Promise(r => setTimeout(r, 200)); // Delay to avoid rate limits
+    }
+    return allKlines;
+}
 
   // Enrich data with technical indicators
   function enrichDataWithIndicators(data) {
