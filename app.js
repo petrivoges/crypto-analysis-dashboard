@@ -112,8 +112,7 @@ $(document).ready(() => {
         await new Promise(r => setTimeout(r, 200)); // Delay to avoid rate limits
     }
     return allKlines;
-}
-
+  }
   // Enrich data with technical indicators
   function enrichDataWithIndicators(data) {
     if (data.length === 0) return [];
