@@ -126,10 +126,10 @@ $(document).ready(() => {
         $loadingElement.addClass("d-none")
         $dashboardContent.removeClass("d-none")
 
-        // Update info message
-        $infoMessage.text(
-          "This analysis is based on real Binance data. Always combine with fundamental analysis and risk management for better results.",
-        )
+        // // Update info message
+        // $infoMessage.text(
+        //   "This analysis is based on real Binance data. Always combine with fundamental analysis and risk management for better results.",
+        // )
       })
       .catch((error) => {
         console.error("Error fetching data:", error)
@@ -949,7 +949,7 @@ $(document).ready(() => {
   
     return priceChart;
   }
-  
+
   // Render technical indicators
   function renderIndicators($container, data) {
     if (!data || data.length === 0) {
