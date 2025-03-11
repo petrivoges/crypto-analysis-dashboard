@@ -1,3 +1,7 @@
+import { Chart } from "@/components/ui/chart"
+import $ from "jquery" // Import jQuery
+
+// Crypto Analysis Dashboard - Main JavaScript
 $(document).ready(() => {
   // DOM elements using jQuery
   const $symbolSelect = $("#symbol-select")
@@ -774,26 +778,36 @@ $(document).ready(() => {
     const indicators = [
       {
         name: "RSI (14)",
-        value: latestData.rsi.toFixed(2),
-        interpretation: interpretRSI(latestData.rsi),
+        value: latestData.rsi !== undefined && latestData.rsi !== null ? latestData.rsi.toFixed(2) : "N/A",
+        interpretation: interpretRSI(latestData.rsi || 50),
         description: "Relative Strength Index measures the speed and change of price movements.",
       },
       {
         name: "MACD",
-        value: latestData.macd.toFixed(4),
-        interpretation: interpretMACD(latestData.macd, latestData.macdSignal),
+        value: latestData.macd !== undefined && latestData.macd !== null ? latestData.macd.toFixed(4) : "N/A",
+        interpretation: interpretMACD(latestData.macd || 0, latestData.macdSignal || 0),
         description: "Moving Average Convergence Divergence is a trend-following momentum indicator.",
       },
       {
         name: "Bollinger Bands",
-        value: `Width: ${(((latestData.bbandsUpper - latestData.bbandsLower) / latestData.bbandsMiddle) * 100).toFixed(2)}%`,
-        interpretation: interpretBollingerBands(latestData.close, latestData.bbandsUpper, latestData.bbandsLower),
+        value:
+          latestData.bbandsUpper && latestData.bbandsLower && latestData.bbandsMiddle
+            ? `Width: ${(((latestData.bbandsUpper - latestData.bbandsLower) / latestData.bbandsMiddle) * 100).toFixed(2)}%`
+            : "N/A",
+        interpretation: interpretBollingerBands(
+          latestData.close || 0,
+          latestData.bbandsUpper || 0,
+          latestData.bbandsLower || 0,
+        ),
         description: "Bollinger Bands measure volatility and potential reversal points.",
       },
       {
         name: "SMA Crossover",
-        value: `20: ${latestData.sma20.toFixed(2)} / 50: ${latestData.sma50.toFixed(2)}`,
-        interpretation: interpretSMACrossover(latestData.sma20, latestData.sma50),
+        value:
+          latestData.sma20 !== undefined && latestData.sma50 !== undefined
+            ? `20: ${latestData.sma20.toFixed(2)} / 50: ${latestData.sma50.toFixed(2)}`
+            : "N/A",
+        interpretation: interpretSMACrossover(latestData.sma20 || 0, latestData.sma50 || 0),
         description: "Simple Moving Average crossovers can indicate trend changes.",
       },
     ]
