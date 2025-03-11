@@ -38,11 +38,22 @@ $(document).ready(() => {
     // Update chart subtitle
     $chartSubtitle.text(`${symbol} price chart with key support and resistance levels`)
 
-    // Fetch data from Binance API
-    fetchBinanceData(symbol, timeframe)
+    // Get current date for fetching data
+    const today = new Date()
+    const dateStr = today.toISOString().split("T")[0] // Format: YYYY-MM-DD
+
+    // Fetch data from Binance API using the user's function
+    fetchKlines(symbol, timeframe, dateStr)
       .then((data) => {
+        if (data.length === 0) {
+          throw new Error("No data returned from Binance API")
+        }
+
+        // Transform data to the format our app expects
+        const transformedData = transformKlinesToAppFormat(data)
+
         // Analyze the data
-        const analysis = analyzeMarket(data)
+        const analysis = analyzeMarket(transformedData)
 
         // Update UI with analysis results
         updateAnalysisUI(analysis)
@@ -53,10 +64,10 @@ $(document).ready(() => {
         }
 
         // Create new chart
-        createPriceChart($priceChartCanvas[0], data)
+        createPriceChart($priceChartCanvas[0], transformedData)
 
         // Render indicators
-        renderIndicators($indicatorsGrid, data)
+        renderIndicators($indicatorsGrid, transformedData)
 
         // Render signals
         renderSignals($signalsList, analysis.signals)
@@ -106,34 +117,51 @@ $(document).ready(() => {
       })
   }
 
-  // Fetch data from Binance API
-  async function fetchBinanceData(symbol, timeframe) {
-    // Convert timeframe to Binance format
-    const interval = timeframeToInterval(timeframe)
+  // Fetch k-line data from Binance API with timestamps
+  async function fetchKlines(coin, interval, date) {
+    const startTime = new Date(date + "T00:00:00Z").getTime()
+    const endTime = startTime + 86400000 // 24 hours
+    let allKlines = []
+    let lastTime = startTime
 
-    // Fetch klines data from Binance API
-    const response = await fetch(
-      `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=100`,
-    )
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+    try {
+      while (true) {
+        const url = `https://api.binance.com/api/v3/klines?symbol=${coin}&interval=${interval}&startTime=${lastTime}&endTime=${endTime}&limit=1000`
+        const response = await fetch(url)
+        if (!response.ok) throw new Error(`Failed to fetch klines for ${coin} on ${date}: ${response.status}`)
+        const data = await response.json()
+        if (data.length === 0) break
+        allKlines = allKlines.concat(
+          data.map((d) => ({
+            open: Number.parseFloat(d[1]),
+            high: Number.parseFloat(d[2]),
+            low: Number.parseFloat(d[3]),
+            close: Number.parseFloat(d[4]),
+            volume: Number.parseFloat(d[5]),
+            openTime: d[0], // milliseconds
+            closeTime: d[6], // milliseconds
+          })),
+        )
+        lastTime = data[data.length - 1][6] + 1 // Next start time (close time + 1ms)
+        await new Promise((r) => setTimeout(r, 200)) // Delay to avoid rate limits
+      }
+      return allKlines
+    } catch (error) {
+      console.error("Error in fetchKlines:", error)
+      throw error
     }
+  }
 
-    const klines = await response.json()
-
-    // Transform klines data to our format
-    const data = klines.map((kline) => ({
-      time: Number.parseInt(kline[0]), // Open time
-      open: Number.parseFloat(kline[1]),
-      high: Number.parseFloat(kline[2]),
-      low: Number.parseFloat(kline[3]),
-      close: Number.parseFloat(kline[4]),
-      volume: Number.parseFloat(kline[5]),
+  // Transform klines data to the format our app expects
+  function transformKlinesToAppFormat(klines) {
+    return klines.map((kline) => ({
+      time: kline.openTime,
+      open: kline.open,
+      high: kline.high,
+      low: kline.low,
+      close: kline.close,
+      volume: kline.volume,
     }))
-
-    // Calculate indicators
-    return enrichDataWithIndicators(data)
   }
 
   // Convert timeframe to Binance interval format
@@ -242,6 +270,11 @@ $(document).ready(() => {
 
   // Enrich data with technical indicators
   function enrichDataWithIndicators(data) {
+    if (!data || data.length === 0) {
+      console.error("No data to enrich with indicators")
+      return []
+    }
+
     const closes = data.map((d) => d.close)
 
     // Calculate simple moving averages
@@ -274,6 +307,8 @@ $(document).ready(() => {
 
   // Calculate Simple Moving Average
   function calculateSMA(data, period) {
+    if (!data || data.length === 0) return []
+
     const sma = []
 
     for (let i = 0; i < data.length; i++) {
@@ -293,6 +328,8 @@ $(document).ready(() => {
 
   // Calculate RSI
   function calculateRSI(data, period) {
+    if (!data || data.length < period + 1) return Array(data.length).fill(50)
+
     const rsi = []
     let gains = 0
     let losses = 0
@@ -342,6 +379,10 @@ $(document).ready(() => {
 
   // Calculate MACD
   function calculateMACD(data, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
+    if (!data || data.length === 0) {
+      return { macdLine: [], signalLine: [], histogram: [] }
+    }
+
     // Calculate EMAs
     const fastEMA = calculateEMA(data, fastPeriod)
     const slowEMA = calculateEMA(data, slowPeriod)
@@ -384,6 +425,8 @@ $(document).ready(() => {
 
   // Calculate EMA
   function calculateEMA(data, period) {
+    if (!data || data.length === 0) return []
+
     const k = 2 / (period + 1)
     const ema = []
 
@@ -406,6 +449,10 @@ $(document).ready(() => {
 
   // Calculate Bollinger Bands
   function calculateBollingerBands(data, period = 20, multiplier = 2) {
+    if (!data || data.length === 0) {
+      return { upper: [], middle: [], lower: [] }
+    }
+
     const sma = calculateSMA(data, period)
 
     const upper = []
@@ -437,6 +484,18 @@ $(document).ready(() => {
 
   // Analyze market data
   function analyzeMarket(data) {
+    if (!data || data.length < 2) {
+      console.error("Not enough data to analyze market")
+      return {
+        sentiment: "neutral",
+        sentimentDescription: "Insufficient data to determine market sentiment.",
+        signalStrength: 50,
+        signalDescription: "Unable to calculate signal strength due to insufficient data.",
+        potentialRoi: 0,
+        signals: [],
+      }
+    }
+
     const latestData = data[data.length - 1]
     const previousData = data[data.length - 2]
 
@@ -524,6 +583,8 @@ $(document).ready(() => {
 
   // Generate trading signals
   function generateSignals(data) {
+    if (!data || data.length < 3) return []
+
     const signals = []
     const latestData = data[data.length - 1]
 
@@ -609,6 +670,11 @@ $(document).ready(() => {
 
   // Create price chart
   function createPriceChart(canvas, data) {
+    if (!data || data.length === 0) {
+      console.error("No data to create price chart")
+      return null
+    }
+
     const ctx = canvas.getContext("2d")
 
     // Format data for Chart.js
@@ -695,6 +761,12 @@ $(document).ready(() => {
 
   // Render technical indicators
   function renderIndicators($container, data) {
+    if (!data || data.length === 0) {
+      console.error("No data to render indicators")
+      $container.html('<div class="alert alert-warning">No data available to display indicators</div>')
+      return
+    }
+
     // Get the most recent data point
     const latestData = data[data.length - 1]
 
