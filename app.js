@@ -1,4 +1,7 @@
 $(document).ready(() => {
+  // Initialize coin select dropdown
+  initCoinSelect()
+
   // DOM elements using jQuery
   const $symbolSelect = $("#symbol-select")
   const $timeframeSelect = $("#timeframe-select")
@@ -25,6 +28,41 @@ $(document).ready(() => {
   // Chart instance
   let priceChart = null
 
+  // Initialize coin dropdown with search functionality
+  async function initCoinSelect() {
+    try {
+      const response = await fetch("https://api.binance.com/api/v3/exchangeInfo")
+      if (!response.ok) {
+        throw new Error("Failed to fetch exchange info")
+      }
+      const data = await response.json()
+
+      const usdtSymbols = data.symbols
+        .filter((symbol) => symbol.quoteAsset === "USDT" && symbol.status === "TRADING")
+        .map((symbol) => ({
+          id: symbol.symbol,
+          text: symbol.symbol,
+        }))
+
+      // Populate the symbol select dropdown
+      $symbolSelect.empty()
+      usdtSymbols.slice(0, 20).forEach((symbol) => {
+        $symbolSelect.append(`<option value="${symbol.id}">${symbol.text}</option>`)
+      })
+
+      // Set default selection to BTCUSDT
+      $symbolSelect.val("BTCUSDT")
+    } catch (error) {
+      console.error("Error initializing coin select:", error)
+      // Add some default options if API fails
+      const defaultSymbols = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "ADAUSDT", "SOLUSDT"]
+      $symbolSelect.empty()
+      defaultSymbols.forEach((symbol) => {
+        $symbolSelect.append(`<option value="${symbol}">${symbol}</option>`)
+      })
+    }
+  }
+
   // Load data function
   function loadData() {
     const symbol = $symbolSelect.val()
@@ -41,16 +79,28 @@ $(document).ready(() => {
     // Get current date for fetching data
     const today = new Date()
     const dateStr = today.toISOString().split("T")[0] // Format: YYYY-MM-DD
+    const yesterdayDate = new Date(today)
+    yesterdayDate.setDate(today.getDate() - 1)
+    const yesterdayStr = yesterdayDate.toISOString().split("T")[0]
 
-    // Fetch data from Binance API using the fetchKlines function
-    fetchKlines(symbol, timeframe, dateStr)
-      .then((data) => {
-        if (data.length === 0) {
+    // First fetch yesterday's data to calculate value area
+    fetchKlines(symbol, "1m", yesterdayStr)
+      .then((yesterdayData) => {
+        // Calculate value area from yesterday's data
+        const valueArea = calculateValueArea(yesterdayData)
+
+        // Now fetch today's data
+        return fetchKlines(symbol, timeframe, dateStr).then((todayData) => {
+          return { valueArea, todayData }
+        })
+      })
+      .then(({ valueArea, todayData }) => {
+        if (todayData.length === 0) {
           throw new Error("No data returned from Binance API")
         }
 
         // Transform data to the format our app expects
-        const transformedData = transformKlinesToAppFormat(data)
+        const transformedData = transformKlinesToAppFormat(todayData, valueArea)
 
         // Analyze the data
         const analysis = analyzeMarket(transformedData)
@@ -165,7 +215,7 @@ $(document).ready(() => {
 
   // Calculate value area (VAL and VAH) for 70% of volume
   function calculateValueArea(klines) {
-    if (klines.length === 0) return { val: null, vah: null }
+    if (!klines || klines.length === 0) return { val: null, vah: null }
 
     const priceVolume = {}
     let totalVolume = 0
@@ -206,7 +256,7 @@ $(document).ready(() => {
   }
 
   // Transform klines data to the format our app expects
-  function transformKlinesToAppFormat(klines) {
+  function transformKlinesToAppFormat(klines, valueArea) {
     return klines.map((kline) => ({
       time: kline.openTime,
       open: kline.open,
@@ -214,6 +264,8 @@ $(document).ready(() => {
       low: kline.low,
       close: kline.close,
       volume: kline.volume,
+      valueAreaLow: valueArea ? valueArea.val : null,
+      valueAreaHigh: valueArea ? valueArea.vah : null,
     }))
   }
 
@@ -259,6 +311,10 @@ $(document).ready(() => {
     const timeframeMinutes = timeframeToMinutes(timeframe)
     time.setMinutes(time.getMinutes() - periods * timeframeMinutes)
 
+    // Generate mock value area
+    const mockValueAreaLow = basePrice * 0.97
+    const mockValueAreaHigh = basePrice * 1.03
+
     for (let i = 0; i < periods; i++) {
       // Add some randomness with a slight trend bias
       const change = Math.random() * volatility * 2 - volatility + trend * volatility * 0.1
@@ -278,6 +334,8 @@ $(document).ready(() => {
         low: low,
         close: close,
         volume: volume,
+        valueAreaLow: mockValueAreaLow,
+        valueAreaHigh: mockValueAreaHigh,
       })
     }
 
@@ -325,9 +383,6 @@ $(document).ready(() => {
     // Calculate Bollinger Bands
     const bbands = calculateBollingerBands(closes)
 
-    // Calculate value area
-    const valueArea = calculateValueArea(data)
-
     // Combine all data
     return data.map((item, i) => ({
       ...item,
@@ -340,8 +395,6 @@ $(document).ready(() => {
       bbandsUpper: bbands.upper[i] || item.close * 1.02,
       bbandsMiddle: bbands.middle[i] || item.close,
       bbandsLower: bbands.lower[i] || item.close * 0.98,
-      valueAreaLow: valueArea.val,
-      valueAreaHigh: valueArea.vah,
     }))
   }
 
@@ -637,6 +690,57 @@ $(document).ready(() => {
     const signals = []
     const latestData = data[data.length - 1]
 
+    // Check for Value Area signals (80% rule)
+    if (latestData.valueAreaLow && latestData.valueAreaHigh) {
+      // Check for price opening below Value Area Low and then crossing above it
+      if (data.length > 2) {
+        const openPrice = data[0].open
+
+        if (openPrice < latestData.valueAreaLow) {
+          // Look for a cross above VAL
+          for (let i = 1; i < data.length; i++) {
+            if (data[i - 1].close <= latestData.valueAreaLow && data[i].close > latestData.valueAreaLow) {
+              signals.push({
+                type: "buy",
+                time: new Date(data[i].time).toLocaleString(),
+                price: data[i].close.toFixed(2),
+                indicator: "80% Rule",
+                strength: 80,
+                description:
+                  "Price opened below Value Area Low and crossed above it, indicating potential move to Value Area High.",
+                targetPrice: latestData.valueAreaHigh.toFixed(2),
+                stopLoss: (data[i].close * 0.99).toFixed(2),
+                potentialRoi: ((latestData.valueAreaHigh / data[i].close - 1) * 100).toFixed(2),
+              })
+              break
+            }
+          }
+        }
+
+        // Check for price opening above Value Area High and then crossing below it
+        if (openPrice > latestData.valueAreaHigh) {
+          // Look for a cross below VAH
+          for (let i = 1; i < data.length; i++) {
+            if (data[i - 1].close >= latestData.valueAreaHigh && data[i].close < latestData.valueAreaHigh) {
+              signals.push({
+                type: "sell",
+                time: new Date(data[i].time).toLocaleString(),
+                price: data[i].close.toFixed(2),
+                indicator: "80% Rule",
+                strength: 80,
+                description:
+                  "Price opened above Value Area High and crossed below it, indicating potential move to Value Area Low.",
+                targetPrice: latestData.valueAreaLow.toFixed(2),
+                stopLoss: (data[i].close * 1.01).toFixed(2),
+                potentialRoi: ((1 - latestData.valueAreaLow / data[i].close) * 100).toFixed(2),
+              })
+              break
+            }
+          }
+        }
+      }
+    }
+
     // Check for RSI signals
     if (data.length > 2 && data[data.length - 2].rsi < 30 && latestData.rsi > 30) {
       signals.push({
@@ -683,47 +787,6 @@ $(document).ready(() => {
         stopLoss: (latestData.close * 0.985).toFixed(2), // 1.5% stop loss
         potentialRoi: 2.5,
       })
-    }
-
-    // Check for Value Area signals
-    if (latestData.valueAreaLow && latestData.valueAreaHigh) {
-      // Check for price crossing above Value Area High
-      if (
-        data.length > 2 &&
-        data[data.length - 2].close <= latestData.valueAreaHigh &&
-        latestData.close > latestData.valueAreaHigh
-      ) {
-        signals.push({
-          type: "buy",
-          time: new Date(latestData.time).toLocaleString(),
-          price: latestData.close.toFixed(2),
-          indicator: "Value Area",
-          strength: 70,
-          description: "Price crossed above Value Area High, indicating potential bullish breakout.",
-          targetPrice: (latestData.close * 1.03).toFixed(2), // 3% target
-          stopLoss: latestData.valueAreaLow.toFixed(2), // Stop at Value Area Low
-          potentialRoi: 3,
-        })
-      }
-
-      // Check for price crossing below Value Area Low
-      if (
-        data.length > 2 &&
-        data[data.length - 2].close >= latestData.valueAreaLow &&
-        latestData.close < latestData.valueAreaLow
-      ) {
-        signals.push({
-          type: "sell",
-          time: new Date(latestData.time).toLocaleString(),
-          price: latestData.close.toFixed(2),
-          indicator: "Value Area",
-          strength: 70,
-          description: "Price crossed below Value Area Low, indicating potential bearish breakdown.",
-          targetPrice: (latestData.close * 0.97).toFixed(2), // 3% target
-          stopLoss: latestData.valueAreaHigh.toFixed(2), // Stop at Value Area High
-          potentialRoi: 3,
-        })
-      }
     }
 
     // Add a default signal if none were generated
@@ -833,40 +896,6 @@ $(document).ready(() => {
             grid: {
               color: "rgba(0, 0, 0, 0.05)",
             },
-            afterFit: (scaleInstance) => {
-              // Add value area lines if they exist
-              if (valueAreaLow && valueAreaHigh) {
-                const yScale = scaleInstance
-                const ctx = yScale.chart.ctx
-                const chartArea = yScale.chart.chartArea
-
-                // Draw Value Area Low line
-                const yPosLow = yScale.getPixelForValue(valueAreaLow)
-                ctx.save()
-                ctx.beginPath()
-                ctx.moveTo(chartArea.left, yPosLow)
-                ctx.lineTo(chartArea.right, yPosLow)
-                ctx.lineWidth = 1
-                ctx.strokeStyle = "rgba(255, 0, 0, 0.5)"
-                ctx.stroke()
-                ctx.fillStyle = "rgba(255, 0, 0, 0.8)"
-                ctx.fillText("VAL: " + valueAreaLow.toFixed(2), chartArea.left + 5, yPosLow - 5)
-                ctx.restore()
-
-                // Draw Value Area High line
-                const yPosHigh = yScale.getPixelForValue(valueAreaHigh)
-                ctx.save()
-                ctx.beginPath()
-                ctx.moveTo(chartArea.left, yPosHigh)
-                ctx.lineTo(chartArea.right, yPosHigh)
-                ctx.lineWidth = 1
-                ctx.strokeStyle = "rgba(0, 128, 0, 0.5)"
-                ctx.stroke()
-                ctx.fillStyle = "rgba(0, 128, 0, 0.8)"
-                ctx.fillText("VAH: " + valueAreaHigh.toFixed(2), chartArea.left + 5, yPosHigh - 5)
-                ctx.restore()
-              }
-            },
           },
         },
         plugins: {
@@ -879,6 +908,34 @@ $(document).ready(() => {
           tooltip: {
             mode: "index",
             intersect: false,
+          },
+          annotation: {
+            annotations: {
+              valueAreaLow: {
+                type: "line",
+                yMin: valueAreaLow,
+                yMax: valueAreaLow,
+                borderColor: "rgba(255, 0, 0, 0.5)",
+                borderWidth: 1,
+                label: {
+                  content: "VAL: " + (valueAreaLow ? valueAreaLow.toFixed(2) : "N/A"),
+                  enabled: true,
+                  position: "start",
+                },
+              },
+              valueAreaHigh: {
+                type: "line",
+                yMin: valueAreaHigh,
+                yMax: valueAreaHigh,
+                borderColor: "rgba(0, 128, 0, 0.5)",
+                borderWidth: 1,
+                label: {
+                  content: "VAH: " + (valueAreaHigh ? valueAreaHigh.toFixed(2) : "N/A"),
+                  enabled: true,
+                  position: "start",
+                },
+              },
+            },
           },
         },
       },
@@ -1039,7 +1096,7 @@ $(document).ready(() => {
                         </div>
                         <div class="col-6 col-md-3">
                             <small class="text-muted d-block">Potential ROI</small>
-                            <span class="fw-medium ${roiColor}">${signal.potentialRoi.toFixed(2)}%</span>
+                            <span class="fw-medium ${roiColor}">${signal.potentialRoi}%</span>
                         </div>
                     </div>
                     
@@ -1071,12 +1128,6 @@ $(document).ready(() => {
     if (price >= upper) return { type: "bearish", text: "Overbought" }
     if (price <= lower) return { type: "bullish", text: "Oversold" }
     return { type: "neutral", text: "Within bands" }
-  }
-
-  function interpretSMACrossover(sma20, sma50) {
-    if (sma20 > sma50) return { type: "bullish", text: "Bullish trend" }
-    if (sma20 < sma50) return { type: "bearish", text: "Bearish trend" }
-    return { type: "neutral", text: "Neutral trend" }
   }
 
   // Update UI with analysis results
