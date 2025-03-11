@@ -204,6 +204,7 @@ $(document).ready(() => {
       return {
           predict: (input) => {
               const lastClose = input.dataSync()[input.shape[0] - 1];
+              tf.setBackend('cpu');
               return tf.tensor([lastClose * 1.01]); // Mock: predict 1% increase
           }
       };
@@ -211,6 +212,7 @@ $(document).ready(() => {
 
   // Make Prediction with LSTM Model
   function makePrediction(model, data) {
+      tf.setBackend('cpu');
       const input = tf.tensor2d(data.map(d => [d.close]), [data.length, 1]);
       const prediction = model.predict(input);
       const result = prediction.dataSync()[0];
@@ -261,7 +263,11 @@ $(document).ready(() => {
   // Create Candlestick Chart
   function createPriceChart(data) {
       const ctx = document.getElementById("price-chart").getContext("2d");
-      return new Chart(ctx, {
+      if (priceChart) {
+        priceChart.destroy(); // Remove the old chart
+        priceChart = null;
+      }
+      priceChart = new Chart(ctx, {
           type: "candlestick",
           data: {
               datasets: [{
@@ -284,6 +290,7 @@ $(document).ready(() => {
               }
           }
       });
+      return priceChart;
   }
 
   // Update Analysis UI
