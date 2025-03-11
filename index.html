@@ -4,23 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crypto Analysis Dashboard</title>
-    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Chart.js for charts -->
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Crypto Analysis Dashboard</h1>
-            <p class="subtitle">Analyze cryptocurrency markets for potential trading opportunities</p>
+    <div class="container py-4">
+        <header class="mb-4">
+            <h1 class="display-5 fw-bold">Crypto Analysis Dashboard</h1>
+            <p class="text-muted">Analyze cryptocurrency markets for potential trading opportunities</p>
         </header>
 
-        <div class="controls">
-            <div class="control-group">
-                <label for="symbol-select">Trading Pair:</label>
-                <select id="symbol-select">
+        <div class="row mb-4 align-items-end">
+            <div class="col-md-4 mb-3 mb-md-0">
+                <label for="symbol-select" class="form-label">Trading Pair:</label>
+                <select id="symbol-select" class="form-select">
                     <option value="BTCUSDT">BTCUSDT</option>
                     <option value="ETHUSDT">ETHUSDT</option>
                     <option value="BNBUSDT">BNBUSDT</option>
@@ -28,9 +41,9 @@
                     <option value="SOLUSDT">SOLUSDT</option>
                 </select>
             </div>
-            <div class="control-group">
-                <label for="timeframe-select">Timeframe:</label>
-                <select id="timeframe-select">
+            <div class="col-md-4 mb-3 mb-md-0">
+                <label for="timeframe-select" class="form-label">Timeframe:</label>
+                <select id="timeframe-select" class="form-select">
                     <option value="5m">5 minutes</option>
                     <option value="15m">15 minutes</option>
                     <option value="1h">1 hour</option>
@@ -38,107 +51,123 @@
                     <option value="1d">1 day</option>
                 </select>
             </div>
-            <button id="refresh-btn" class="btn">
-                <i class="fas fa-sync-alt"></i> Refresh
-            </button>
+            <div class="col-md-4">
+                <button id="refresh-btn" class="btn btn-primary w-100">
+                    <i class="fas fa-sync-alt me-2"></i> Refresh Data
+                </button>
+            </div>
         </div>
 
-        <div id="api-error" class="alert alert-error" style="display: none;">
-            <i class="fas fa-exclamation-triangle"></i>
-            <p>Error fetching data from Binance API. Using fallback data instead.</p>
+        <div id="api-error" class="alert alert-danger d-none" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Error fetching data from Binance API. Using fallback data instead.
         </div>
 
-        <div id="loading" class="loading-container">
-            <div class="loading-spinner"></div>
+        <div id="loading" class="text-center py-5">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
             <p>Loading market data...</p>
         </div>
 
-        <div id="dashboard-content" style="display: none;">
-            <div class="cards-container">
-                <div class="card">
-                    <div class="card-header">
-                        <h3>Market Sentiment</h3>
-                    </div>
-                    <div class="card-content">
-                        <div id="sentiment-badge" class="badge">
-                            <i class="fas fa-chart-line"></i>
-                            <span id="sentiment-text">Neutral</span>
+        <div id="dashboard-content" class="d-none">
+            <div class="row mb-4">
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Market Sentiment</h5>
                         </div>
-                        <p id="sentiment-description" class="description">Analyzing market sentiment...</p>
+                        <div class="card-body">
+                            <div id="sentiment-badge" class="badge bg-secondary mb-2">
+                                <i class="fas fa-chart-line me-1"></i>
+                                <span id="sentiment-text">Neutral</span>
+                            </div>
+                            <p id="sentiment-description" class="card-text text-muted small">Analyzing market sentiment...</p>
+                        </div>
                     </div>
                 </div>
                 
-                <div class="card">
-                    <div class="card-header">
-                        <h3>Signal Strength</h3>
-                    </div>
-                    <div class="card-content">
-                        <div class="progress-container">
-                            <div id="signal-strength-bar" class="progress-bar" style="width: 50%"></div>
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Signal Strength</h5>
                         </div>
-                        <div class="strength-value">
-                            <span id="signal-strength-value">50</span>%
+                        <div class="card-body">
+                            <div class="progress mb-2" style="height: 10px;">
+                                <div id="signal-strength-bar" class="progress-bar bg-warning" role="progressbar" style="width: 50%"></div>
+                            </div>
+                            <div class="d-flex justify-content-end mb-2">
+                                <span id="signal-strength-value" class="fw-bold">50</span>%
+                            </div>
+                            <p id="signal-description" class="card-text text-muted small">Analyzing signal strength...</p>
                         </div>
-                        <p id="signal-description" class="description">Analyzing signal strength...</p>
                     </div>
                 </div>
                 
-                <div class="card">
-                    <div class="card-header">
-                        <h3>Potential ROI</h3>
-                    </div>
-                    <div class="card-content">
-                        <div class="roi-container">
-                            <span id="roi-value" class="roi-value">2.35%</span>
-                            <i id="roi-icon" class="fas fa-arrow-up" style="color: var(--success);"></i>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Potential ROI</h5>
                         </div>
-                        <p class="description">Based on current market conditions</p>
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-2">
+                                <span id="roi-value" class="fs-4 fw-bold me-2">2.35%</span>
+                                <i id="roi-icon" class="fas fa-arrow-up text-success"></i>
+                            </div>
+                            <p class="card-text text-muted small">Based on current market conditions</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="tabs-container">
-                <div class="tabs">
-                    <button class="tab-btn active" data-tab="chart">Price Chart</button>
-                    <button class="tab-btn" data-tab="indicators">Technical Indicators</button>
-                    <button class="tab-btn" data-tab="signals">Trading Signals</button>
-                </div>
-                
-                <div class="tab-content active" id="chart-tab">
-                    <div class="card full-width">
+            <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="chart-tab" data-bs-toggle="tab" data-bs-target="#chart-pane" type="button" role="tab">Price Chart</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="indicators-tab" data-bs-toggle="tab" data-bs-target="#indicators-pane" type="button" role="tab">Technical Indicators</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="signals-tab" data-bs-toggle="tab" data-bs-target="#signals-pane" type="button" role="tab">Trading Signals</button>
+                </li>
+            </ul>
+            
+            <div class="tab-content" id="myTabContent">
+                <div class="tab-pane fade show active" id="chart-pane" role="tabpanel" aria-labelledby="chart-tab">
+                    <div class="card">
                         <div class="card-header">
-                            <h3>Price Chart</h3>
-                            <p class="subtitle" id="chart-subtitle">BTCUSDT price chart with key support and resistance levels</p>
+                            <h5 class="card-title mb-0">Price Chart</h5>
+                            <p class="card-text text-muted small" id="chart-subtitle">BTCUSDT price chart with key support and resistance levels</p>
                         </div>
-                        <div class="card-content">
-                            <div class="chart-container">
+                        <div class="card-body">
+                            <div class="chart-container" style="height: 400px;">
                                 <canvas id="price-chart"></canvas>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="tab-content" id="indicators-tab">
-                    <div class="card full-width">
+                <div class="tab-pane fade" id="indicators-pane" role="tabpanel" aria-labelledby="indicators-tab">
+                    <div class="card">
                         <div class="card-header">
-                            <h3>Technical Indicators</h3>
-                            <p class="subtitle">Key technical indicators and their current values</p>
+                            <h5 class="card-title mb-0">Technical Indicators</h5>
+                            <p class="card-text text-muted small">Key technical indicators and their current values</p>
                         </div>
-                        <div class="card-content">
-                            <div id="indicators-grid" class="indicators-grid">
+                        <div class="card-body">
+                            <div id="indicators-grid" class="row g-3">
                                 <!-- Indicators will be inserted here by JavaScript -->
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="tab-content" id="signals-tab">
-                    <div class="card full-width">
+                <div class="tab-pane fade" id="signals-pane" role="tabpanel" aria-labelledby="signals-tab">
+                    <div class="card">
                         <div class="card-header">
-                            <h3>Trading Signals</h3>
-                            <p class="subtitle">Recent buy and sell signals based on technical analysis</p>
+                            <h5 class="card-title mb-0">Trading Signals</h5>
+                            <p class="card-text text-muted small">Recent buy and sell signals based on technical analysis</p>
                         </div>
-                        <div class="card-content">
+                        <div class="card-body">
                             <div id="signals-list" class="signals-list">
                                 <!-- Signals will be inserted here by JavaScript -->
                             </div>
@@ -147,17 +176,18 @@
                 </div>
             </div>
 
-            <div class="info-box">
-                <i class="fas fa-info-circle"></i>
-                <p id="info-message">This analysis is based on real Binance data. Always combine with fundamental analysis and risk management for better results.</p>
+            <div class="alert alert-info mt-4">
+                <i class="fas fa-info-circle me-2"></i>
+                <span id="info-message">This analysis is based on real Binance data. Always combine with fundamental analysis and risk management for better results.</span>
             </div>
         </div>
 
-        <footer>
+        <footer class="mt-5 pt-3 border-top text-muted small">
             <p>Disclaimer: This tool is for informational purposes only. Cryptocurrency trading involves significant risk. Past performance is not indicative of future results.</p>
         </footer>
     </div>
 
+    <!-- Custom JavaScript -->
     <script src="app.js"></script>
 </body>
 </html>

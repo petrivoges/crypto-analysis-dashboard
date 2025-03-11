@@ -1,60 +1,42 @@
-import { Chart } from "@/components/ui/chart"
-// Crypto Analysis Dashboard - Main JavaScript
-document.addEventListener("DOMContentLoaded", () => {
-  // DOM elements
-  const symbolSelect = document.getElementById("symbol-select")
-  const timeframeSelect = document.getElementById("timeframe-select")
-  const refreshBtn = document.getElementById("refresh-btn")
-  const loadingElement = document.getElementById("loading")
-  const dashboardContent = document.getElementById("dashboard-content")
-  const chartSubtitle = document.getElementById("chart-subtitle")
-  const priceChartCanvas = document.getElementById("price-chart")
-  const indicatorsGrid = document.getElementById("indicators-grid")
-  const signalsList = document.getElementById("signals-list")
-  const apiErrorElement = document.getElementById("api-error")
+$(document).ready(() => {
+  // DOM elements using jQuery
+  const $symbolSelect = $("#symbol-select")
+  const $timeframeSelect = $("#timeframe-select")
+  const $refreshBtn = $("#refresh-btn")
+  const $loadingElement = $("#loading")
+  const $dashboardContent = $("#dashboard-content")
+  const $chartSubtitle = $("#chart-subtitle")
+  const $priceChartCanvas = $("#price-chart")
+  const $indicatorsGrid = $("#indicators-grid")
+  const $signalsList = $("#signals-list")
+  const $apiErrorElement = $("#api-error")
+  const $infoMessage = $("#info-message")
 
   // UI elements for analysis results
-  const sentimentBadge = document.getElementById("sentiment-badge")
-  const sentimentText = document.getElementById("sentiment-text")
-  const sentimentDescription = document.getElementById("sentiment-description")
-  const signalStrengthBar = document.getElementById("signal-strength-bar")
-  const signalStrengthValue = document.getElementById("signal-strength-value")
-  const signalDescription = document.getElementById("signal-description")
-  const roiValue = document.getElementById("roi-value")
-  const roiIcon = document.getElementById("roi-icon")
-
-  // Tab functionality
-  const tabButtons = document.querySelectorAll(".tab-btn")
-  const tabContents = document.querySelectorAll(".tab-content")
-
-  tabButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      // Remove active class from all buttons and contents
-      tabButtons.forEach((btn) => btn.classList.remove("active"))
-      tabContents.forEach((content) => content.classList.remove("active"))
-
-      // Add active class to clicked button and corresponding content
-      button.classList.add("active")
-      const tabId = button.getAttribute("data-tab")
-      document.getElementById(`${tabId}-tab`).classList.add("active")
-    })
-  })
+  const $sentimentBadge = $("#sentiment-badge")
+  const $sentimentText = $("#sentiment-text")
+  const $sentimentDescription = $("#sentiment-description")
+  const $signalStrengthBar = $("#signal-strength-bar")
+  const $signalStrengthValue = $("#signal-strength-value")
+  const $signalDescription = $("#signal-description")
+  const $roiValue = $("#roi-value")
+  const $roiIcon = $("#roi-icon")
 
   // Chart instance
   let priceChart = null
 
   // Load data function
   function loadData() {
-    const symbol = symbolSelect.value
-    const timeframe = timeframeSelect.value
+    const symbol = $symbolSelect.val()
+    const timeframe = $timeframeSelect.val()
 
     // Show loading state
-    loadingElement.style.display = "flex"
-    dashboardContent.style.display = "none"
-    apiErrorElement.style.display = "none"
+    $loadingElement.removeClass("d-none")
+    $dashboardContent.addClass("d-none")
+    $apiErrorElement.addClass("d-none")
 
     // Update chart subtitle
-    chartSubtitle.textContent = `${symbol} price chart with key support and resistance levels`
+    $chartSubtitle.text(`${symbol} price chart with key support and resistance levels`)
 
     // Fetch data from Binance API
     fetchBinanceData(symbol, timeframe)
@@ -71,21 +53,26 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // Create new chart
-        createPriceChart(priceChartCanvas, data)
+        createPriceChart($priceChartCanvas[0], data)
 
         // Render indicators
-        renderIndicators(indicatorsGrid, data)
+        renderIndicators($indicatorsGrid, data)
 
         // Render signals
-        renderSignals(signalsList, analysis.signals)
+        renderSignals($signalsList, analysis.signals)
 
         // Show dashboard content
-        loadingElement.style.display = "none"
-        dashboardContent.style.display = "block"
+        $loadingElement.addClass("d-none")
+        $dashboardContent.removeClass("d-none")
+
+        // Update info message
+        $infoMessage.text(
+          "This analysis is based on real Binance data. Always combine with fundamental analysis and risk management for better results.",
+        )
       })
       .catch((error) => {
         console.error("Error fetching data:", error)
-        apiErrorElement.style.display = "flex"
+        $apiErrorElement.removeClass("d-none")
 
         // Use mock data as fallback
         const mockData = generateMockData(symbol, timeframe)
@@ -100,17 +87,22 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         // Create new chart
-        createPriceChart(priceChartCanvas, mockData)
+        createPriceChart($priceChartCanvas[0], mockData)
 
         // Render indicators
-        renderIndicators(indicatorsGrid, mockData)
+        renderIndicators($indicatorsGrid, mockData)
 
         // Render signals
-        renderSignals(signalsList, analysis.signals)
+        renderSignals($signalsList, analysis.signals)
 
         // Show dashboard content
-        loadingElement.style.display = "none"
-        dashboardContent.style.display = "block"
+        $loadingElement.addClass("d-none")
+        $dashboardContent.removeClass("d-none")
+
+        // Update info message
+        $infoMessage.text(
+          "This analysis is based on simulated data for demonstration purposes. In a production environment, you would connect to real market data.",
+        )
       })
   }
 
@@ -118,9 +110,6 @@ document.addEventListener("DOMContentLoaded", () => {
   async function fetchBinanceData(symbol, timeframe) {
     // Convert timeframe to Binance format
     const interval = timeframeToInterval(timeframe)
-
-    // Calculate start time (100 candles back)
-    const endTime = Date.now()
 
     // Fetch klines data from Binance API
     const response = await fetch(
@@ -135,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Transform klines data to our format
     const data = klines.map((kline) => ({
-      time: kline[0], // Open time
+      time: Number.parseInt(kline[0]), // Open time
       open: Number.parseFloat(kline[1]),
       high: Number.parseFloat(kline[2]),
       low: Number.parseFloat(kline[3]),
@@ -641,8 +630,8 @@ document.addEventListener("DOMContentLoaded", () => {
           {
             label: "Price",
             data: prices,
-            borderColor: "#2563eb",
-            backgroundColor: "rgba(37, 99, 235, 0.1)",
+            borderColor: "#0d6efd",
+            backgroundColor: "rgba(13, 110, 253, 0.1)",
             borderWidth: 2,
             fill: false,
             tension: 0.1,
@@ -682,7 +671,7 @@ document.addEventListener("DOMContentLoaded", () => {
           y: {
             position: "right",
             grid: {
-              color: "rgba(229, 231, 235, 0.5)",
+              color: "rgba(0, 0, 0, 0.05)",
             },
           },
         },
@@ -705,7 +694,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Render technical indicators
-  function renderIndicators(container, data) {
+  function renderIndicators($container, data) {
     // Get the most recent data point
     const latestData = data[data.length - 1]
 
@@ -738,195 +727,108 @@ document.addEventListener("DOMContentLoaded", () => {
     ]
 
     // Clear container
-    container.innerHTML = ""
+    $container.empty()
 
     // Create indicator cards
     indicators.forEach((indicator) => {
-      const card = document.createElement("div")
-      card.className = "indicator-card"
+      const badgeClass = `badge ${
+        indicator.interpretation.type === "bullish"
+          ? "bg-success"
+          : indicator.interpretation.type === "bearish"
+            ? "bg-danger"
+            : "bg-secondary"
+      }`
 
-      const header = document.createElement("div")
-      header.className = "indicator-header"
+      const iconClass =
+        indicator.interpretation.type === "bullish"
+          ? "fa-arrow-up"
+          : indicator.interpretation.type === "bearish"
+            ? "fa-arrow-down"
+            : "fa-minus"
 
-      const nameElement = document.createElement("div")
-      nameElement.className = "indicator-name"
-      nameElement.textContent = indicator.name
+      const indicatorHtml = `
+                <div class="col-md-6">
+                    <div class="indicator-card">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="fw-bold">${indicator.name}</div>
+                            <span class="${badgeClass}">
+                                <i class="fas ${iconClass} me-1"></i>
+                                ${indicator.interpretation.type.charAt(0).toUpperCase() + indicator.interpretation.type.slice(1)}
+                            </span>
+                        </div>
+                        <div class="fs-4 fw-bold mb-2">${indicator.value}</div>
+                        <p class="text-muted small mb-1">${indicator.interpretation.text}</p>
+                        <p class="text-muted small">${indicator.description}</p>
+                    </div>
+                </div>
+            `
 
-      const badge = document.createElement("div")
-      badge.className = `badge ${indicator.interpretation.type}`
-
-      const icon = document.createElement("i")
-      if (indicator.interpretation.type === "bullish") {
-        icon.className = "fas fa-arrow-up"
-      } else if (indicator.interpretation.type === "bearish") {
-        icon.className = "fas fa-arrow-down"
-      } else {
-        icon.className = "fas fa-minus"
-      }
-
-      const badgeText = document.createElement("span")
-      badgeText.textContent =
-        indicator.interpretation.type.charAt(0).toUpperCase() + indicator.interpretation.type.slice(1)
-
-      badge.appendChild(icon)
-      badge.appendChild(badgeText)
-
-      header.appendChild(nameElement)
-      header.appendChild(badge)
-
-      const valueElement = document.createElement("div")
-      valueElement.className = "indicator-value"
-      valueElement.textContent = indicator.value
-
-      const interpretationElement = document.createElement("div")
-      interpretationElement.className = "description"
-      interpretationElement.textContent = indicator.interpretation.text
-
-      const descriptionElement = document.createElement("div")
-      descriptionElement.className = "description"
-      descriptionElement.textContent = indicator.description
-
-      card.appendChild(header)
-      card.appendChild(valueElement)
-      card.appendChild(interpretationElement)
-      card.appendChild(descriptionElement)
-
-      container.appendChild(card)
+      $container.append(indicatorHtml)
     })
   }
 
   // Render trading signals
-  function renderSignals(container, signals) {
+  function renderSignals($container, signals) {
     // Clear container
-    container.innerHTML = ""
+    $container.empty()
 
     if (!signals || signals.length === 0) {
-      const noSignals = document.createElement("div")
-      noSignals.className = "no-signals"
-      noSignals.innerHTML = `
-                <i class="fas fa-exclamation-triangle"></i>
-                <h3>No signals detected</h3>
-                <p>There are currently no trading signals based on your selected timeframe and indicators.
-                Try changing the timeframe or check back later.</p>
+      const noSignalsHtml = `
+                <div class="no-signals">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h5>No signals detected</h5>
+                    <p>There are currently no trading signals based on your selected timeframe and indicators.
+                    Try changing the timeframe or check back later.</p>
+                </div>
             `
-      container.appendChild(noSignals)
+      $container.append(noSignalsHtml)
       return
     }
 
     // Create signal cards
     signals.forEach((signal) => {
-      const card = document.createElement("div")
-      card.className = `signal-card ${signal.type}`
+      const signalTypeClass = signal.type === "buy" ? "buy" : "sell"
+      const badgeClass = signal.type === "buy" ? "bg-success" : "bg-danger"
+      const iconClass = signal.type === "buy" ? "fa-arrow-up" : "fa-arrow-down"
+      const roiColor = signal.potentialRoi > 0 ? "text-success" : "text-danger"
 
-      const header = document.createElement("div")
-      header.className = "signal-header"
+      const signalHtml = `
+                <div class="signal-card ${signalTypeClass}">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex align-items-center">
+                            <span class="badge ${badgeClass} me-2">
+                                <i class="fas ${iconClass} me-1"></i>
+                                ${signal.type.toUpperCase()}
+                            </span>
+                            <span>${signal.indicator}</span>
+                        </div>
+                        <small class="text-muted">${signal.time}</small>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-6 col-md-3">
+                            <small class="text-muted d-block">Entry Price</small>
+                            <span class="fw-medium">${signal.price}</span>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <small class="text-muted d-block">Target Price</small>
+                            <span class="fw-medium">${signal.targetPrice}</span>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <small class="text-muted d-block">Stop Loss</small>
+                            <span class="fw-medium">${signal.stopLoss}</span>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <small class="text-muted d-block">Potential ROI</small>
+                            <span class="fw-medium ${roiColor}">${signal.potentialRoi.toFixed(2)}%</span>
+                        </div>
+                    </div>
+                    
+                    <p class="text-muted small mb-0">${signal.description}</p>
+                </div>
+            `
 
-      const typeContainer = document.createElement("div")
-      typeContainer.className = "signal-type"
-
-      const badge = document.createElement("div")
-      badge.className = `badge ${signal.type === "buy" ? "bullish" : "bearish"}`
-
-      const icon = document.createElement("i")
-      icon.className = signal.type === "buy" ? "fas fa-arrow-up" : "fas fa-arrow-down"
-
-      const badgeText = document.createElement("span")
-      badgeText.textContent = signal.type.toUpperCase()
-
-      badge.appendChild(icon)
-      badge.appendChild(badgeText)
-
-      const indicatorName = document.createElement("span")
-      indicatorName.textContent = signal.indicator
-
-      typeContainer.appendChild(badge)
-      typeContainer.appendChild(indicatorName)
-
-      const timeElement = document.createElement("div")
-      timeElement.className = "signal-time"
-      timeElement.textContent = signal.time
-
-      header.appendChild(typeContainer)
-      header.appendChild(timeElement)
-
-      const details = document.createElement("div")
-      details.className = "signal-details"
-
-      // Entry Price
-      const entryPriceContainer = document.createElement("div")
-      entryPriceContainer.className = "signal-detail"
-
-      const entryPriceLabel = document.createElement("div")
-      entryPriceLabel.className = "signal-detail-label"
-      entryPriceLabel.textContent = "Entry Price"
-
-      const entryPriceValue = document.createElement("div")
-      entryPriceValue.className = "signal-detail-value"
-      entryPriceValue.textContent = signal.price
-
-      entryPriceContainer.appendChild(entryPriceLabel)
-      entryPriceContainer.appendChild(entryPriceValue)
-
-      // Target Price
-      const targetPriceContainer = document.createElement("div")
-      targetPriceContainer.className = "signal-detail"
-
-      const targetPriceLabel = document.createElement("div")
-      targetPriceLabel.className = "signal-detail-label"
-      targetPriceLabel.textContent = "Target Price"
-
-      const targetPriceValue = document.createElement("div")
-      targetPriceValue.className = "signal-detail-value"
-      targetPriceValue.textContent = signal.targetPrice
-
-      targetPriceContainer.appendChild(targetPriceLabel)
-      targetPriceContainer.appendChild(targetPriceValue)
-
-      // Stop Loss
-      const stopLossContainer = document.createElement("div")
-      stopLossContainer.className = "signal-detail"
-
-      const stopLossLabel = document.createElement("div")
-      stopLossLabel.className = "signal-detail-label"
-      stopLossLabel.textContent = "Stop Loss"
-
-      const stopLossValue = document.createElement("div")
-      stopLossValue.className = "signal-detail-value"
-      stopLossValue.textContent = signal.stopLoss
-
-      stopLossContainer.appendChild(stopLossLabel)
-      stopLossContainer.appendChild(stopLossValue)
-
-      // Potential ROI
-      const roiContainer = document.createElement("div")
-      roiContainer.className = "signal-detail"
-
-      const roiLabel = document.createElement("div")
-      roiLabel.className = "signal-detail-label"
-      roiLabel.textContent = "Potential ROI"
-
-      const roiValue = document.createElement("div")
-      roiValue.className = "signal-detail-value"
-      roiValue.textContent = `${signal.potentialRoi.toFixed(2)}%`
-      roiValue.style.color = signal.potentialRoi > 0 ? "var(--success)" : "var(--danger)"
-
-      roiContainer.appendChild(roiLabel)
-      roiContainer.appendChild(roiValue)
-
-      details.appendChild(entryPriceContainer)
-      details.appendChild(targetPriceContainer)
-      details.appendChild(stopLossContainer)
-      details.appendChild(roiContainer)
-
-      const descriptionContainer = document.createElement("div")
-      descriptionContainer.className = "description"
-      descriptionContainer.textContent = signal.description
-
-      card.appendChild(header)
-      card.appendChild(details)
-      card.appendChild(descriptionContainer)
-
-      container.appendChild(card)
+      $container.append(signalHtml)
     })
   }
 
@@ -961,57 +863,60 @@ document.addEventListener("DOMContentLoaded", () => {
   // Update UI with analysis results
   function updateAnalysisUI(analysis) {
     // Update sentiment
-    sentimentText.textContent = analysis.sentiment.charAt(0).toUpperCase() + analysis.sentiment.slice(1)
-    sentimentDescription.textContent = analysis.sentimentDescription
+    $sentimentText.text(analysis.sentiment.charAt(0).toUpperCase() + analysis.sentiment.slice(1))
+    $sentimentDescription.text(analysis.sentimentDescription)
 
     // Update sentiment badge
-    sentimentBadge.className = "badge"
+    $sentimentBadge.removeClass("bg-secondary bg-success bg-danger")
     if (analysis.sentiment === "bullish") {
-      sentimentBadge.classList.add("bullish")
-      sentimentBadge.innerHTML = '<i class="fas fa-arrow-up"></i> Bullish'
+      $sentimentBadge.addClass("bg-success")
+      $sentimentBadge.html('<i class="fas fa-arrow-up me-1"></i> Bullish')
     } else if (analysis.sentiment === "bearish") {
-      sentimentBadge.classList.add("bearish")
-      sentimentBadge.innerHTML = '<i class="fas fa-arrow-down"></i> Bearish'
+      $sentimentBadge.addClass("bg-danger")
+      $sentimentBadge.html('<i class="fas fa-arrow-down me-1"></i> Bearish')
     } else {
-      sentimentBadge.innerHTML = '<i class="fas fa-minus"></i> Neutral'
+      $sentimentBadge.addClass("bg-secondary")
+      $sentimentBadge.html('<i class="fas fa-minus me-1"></i> Neutral')
     }
 
     // Update signal strength
-    signalStrengthValue.textContent = Math.round(analysis.signalStrength)
-    signalStrengthBar.style.width = `${analysis.signalStrength}%`
-    signalDescription.textContent = analysis.signalDescription
+    $signalStrengthValue.text(Math.round(analysis.signalStrength))
+    $signalStrengthBar.css("width", `${analysis.signalStrength}%`)
+    $signalDescription.text(analysis.signalDescription)
 
     // Update signal strength bar color
-    signalStrengthBar.className = "progress-bar"
+    $signalStrengthBar.removeClass("bg-warning bg-success bg-danger")
     if (analysis.signalStrength > 70) {
-      signalStrengthBar.classList.add("strong")
+      $signalStrengthBar.addClass("bg-success")
     } else if (analysis.signalStrength < 30) {
-      signalStrengthBar.classList.add("weak")
+      $signalStrengthBar.addClass("bg-danger")
+    } else {
+      $signalStrengthBar.addClass("bg-warning")
     }
 
     // Update ROI
     const roi = analysis.potentialRoi.toFixed(2)
-    roiValue.textContent = `${roi}%`
+    $roiValue.text(`${roi}%`)
 
     // Update ROI color and icon
+    $roiValue.removeClass("text-success text-danger")
+    $roiIcon.removeClass("fa-arrow-up fa-arrow-down fa-minus text-success text-danger")
+
     if (analysis.potentialRoi > 0) {
-      roiValue.className = "roi-value roi-positive"
-      roiIcon.className = "fas fa-arrow-up"
-      roiIcon.style.color = "var(--success)"
+      $roiValue.addClass("text-success")
+      $roiIcon.addClass("fa-arrow-up text-success")
     } else if (analysis.potentialRoi < 0) {
-      roiValue.className = "roi-value roi-negative"
-      roiIcon.className = "fas fa-arrow-down"
-      roiIcon.style.color = "var(--danger)"
+      $roiValue.addClass("text-danger")
+      $roiIcon.addClass("fa-arrow-down text-danger")
     } else {
-      roiValue.className = "roi-value"
-      roiIcon.className = "fas fa-minus"
+      $roiIcon.addClass("fa-minus")
     }
   }
 
   // Event listeners
-  symbolSelect.addEventListener("change", loadData)
-  timeframeSelect.addEventListener("change", loadData)
-  refreshBtn.addEventListener("click", loadData)
+  $symbolSelect.on("change", loadData)
+  $timeframeSelect.on("change", loadData)
+  $refreshBtn.on("click", loadData)
 
   // Initial load
   loadData()
