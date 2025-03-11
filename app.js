@@ -1,4 +1,3 @@
-// Crypto Analysis Dashboard - Main JavaScript
 $(document).ready(() => {
   // DOM elements using jQuery
   const $symbolSelect = $("#symbol-select")
@@ -43,7 +42,7 @@ $(document).ready(() => {
     const today = new Date()
     const dateStr = today.toISOString().split("T")[0] // Format: YYYY-MM-DD
 
-    // Fetch data from Binance API using the user's function
+    // Fetch data from Binance API using the fetchKlines function
     fetchKlines(symbol, timeframe, dateStr)
       .then((data) => {
         if (data.length === 0) {
@@ -128,10 +127,16 @@ $(document).ready(() => {
     try {
       while (true) {
         const url = `https://api.binance.com/api/v3/klines?symbol=${coin}&interval=${interval}&startTime=${lastTime}&endTime=${endTime}&limit=1000`
+        console.log("Fetching data from:", url)
+
         const response = await fetch(url)
         if (!response.ok) throw new Error(`Failed to fetch klines for ${coin} on ${date}: ${response.status}`)
+
         const data = await response.json()
+        console.log("Received data length:", data.length)
+
         if (data.length === 0) break
+
         allKlines = allKlines.concat(
           data.map((d) => ({
             open: Number.parseFloat(d[1]),
@@ -143,14 +148,61 @@ $(document).ready(() => {
             closeTime: d[6], // milliseconds
           })),
         )
+
+        if (data.length < 1000) break // Less than max results, we're done
         lastTime = data[data.length - 1][6] + 1 // Next start time (close time + 1ms)
+
         await new Promise((r) => setTimeout(r, 200)) // Delay to avoid rate limits
       }
+
+      console.log("Total klines fetched:", allKlines.length)
       return allKlines
     } catch (error) {
       console.error("Error in fetchKlines:", error)
       throw error
     }
+  }
+
+  // Calculate value area (VAL and VAH) for 70% of volume
+  function calculateValueArea(klines) {
+    if (klines.length === 0) return { val: null, vah: null }
+
+    const priceVolume = {}
+    let totalVolume = 0
+
+    klines.forEach((k) => {
+      const price = Math.round(k.close * 100) / 100 // 2 decimal places
+      priceVolume[price] = (priceVolume[price] || 0) + k.volume
+      totalVolume += k.volume
+    })
+
+    const sortedPrices = Object.keys(priceVolume)
+      .map(Number)
+      .sort((a, b) => a - b)
+    if (sortedPrices.length === 0 || totalVolume === 0) return { val: null, vah: null }
+
+    const poc = sortedPrices.reduce((max, p) => (priceVolume[p] > priceVolume[max] ? p : max), sortedPrices[0])
+    let coveredVolume = priceVolume[poc]
+    let val = poc,
+      vah = poc
+
+    while (coveredVolume < 0.7 * totalVolume) {
+      const valIdx = sortedPrices.indexOf(val)
+      const vahIdx = sortedPrices.indexOf(vah)
+      const below = valIdx > 0 ? sortedPrices[valIdx - 1] : null
+      const above = vahIdx < sortedPrices.length - 1 ? sortedPrices[vahIdx + 1] : null
+
+      if (below && (!above || priceVolume[below] >= (priceVolume[above] || 0))) {
+        val = below
+        coveredVolume += priceVolume[below]
+      } else if (above) {
+        vah = above
+        coveredVolume += priceVolume[above]
+      } else {
+        break
+      }
+    }
+    return { val, vah }
   }
 
   // Transform klines data to the format our app expects
@@ -163,24 +215,6 @@ $(document).ready(() => {
       close: kline.close,
       volume: kline.volume,
     }))
-  }
-
-  // Convert timeframe to Binance interval format
-  function timeframeToInterval(timeframe) {
-    switch (timeframe) {
-      case "5m":
-        return "5m"
-      case "15m":
-        return "15m"
-      case "1h":
-        return "1h"
-      case "4h":
-        return "4h"
-      case "1d":
-        return "1d"
-      default:
-        return "4h"
-    }
   }
 
   // Generate mock data (fallback)
@@ -291,6 +325,9 @@ $(document).ready(() => {
     // Calculate Bollinger Bands
     const bbands = calculateBollingerBands(closes)
 
+    // Calculate value area
+    const valueArea = calculateValueArea(data)
+
     // Combine all data
     return data.map((item, i) => ({
       ...item,
@@ -303,6 +340,8 @@ $(document).ready(() => {
       bbandsUpper: bbands.upper[i] || item.close * 1.02,
       bbandsMiddle: bbands.middle[i] || item.close,
       bbandsLower: bbands.lower[i] || item.close * 0.98,
+      valueAreaLow: valueArea.val,
+      valueAreaHigh: valueArea.vah,
     }))
   }
 
@@ -541,6 +580,15 @@ $(document).ready(() => {
       signalStrength -= 7 // Strong bearish
     }
 
+    // Value Area analysis
+    if (latestData.valueAreaLow && latestData.valueAreaHigh) {
+      if (latestData.close < latestData.valueAreaLow && previousData.close >= latestData.valueAreaLow) {
+        signalStrength -= 8 // Price broke below value area low
+      } else if (latestData.close > latestData.valueAreaHigh && previousData.close <= latestData.valueAreaHigh) {
+        signalStrength += 8 // Price broke above value area high
+      }
+    }
+
     // Ensure strength is between 0 and 100
     signalStrength = Math.max(0, Math.min(100, signalStrength))
 
@@ -637,6 +685,47 @@ $(document).ready(() => {
       })
     }
 
+    // Check for Value Area signals
+    if (latestData.valueAreaLow && latestData.valueAreaHigh) {
+      // Check for price crossing above Value Area High
+      if (
+        data.length > 2 &&
+        data[data.length - 2].close <= latestData.valueAreaHigh &&
+        latestData.close > latestData.valueAreaHigh
+      ) {
+        signals.push({
+          type: "buy",
+          time: new Date(latestData.time).toLocaleString(),
+          price: latestData.close.toFixed(2),
+          indicator: "Value Area",
+          strength: 70,
+          description: "Price crossed above Value Area High, indicating potential bullish breakout.",
+          targetPrice: (latestData.close * 1.03).toFixed(2), // 3% target
+          stopLoss: latestData.valueAreaLow.toFixed(2), // Stop at Value Area Low
+          potentialRoi: 3,
+        })
+      }
+
+      // Check for price crossing below Value Area Low
+      if (
+        data.length > 2 &&
+        data[data.length - 2].close >= latestData.valueAreaLow &&
+        latestData.close < latestData.valueAreaLow
+      ) {
+        signals.push({
+          type: "sell",
+          time: new Date(latestData.time).toLocaleString(),
+          price: latestData.close.toFixed(2),
+          indicator: "Value Area",
+          strength: 70,
+          description: "Price crossed below Value Area Low, indicating potential bearish breakdown.",
+          targetPrice: (latestData.close * 0.97).toFixed(2), // 3% target
+          stopLoss: latestData.valueAreaHigh.toFixed(2), // Stop at Value Area High
+          potentialRoi: 3,
+        })
+      }
+    }
+
     // Add a default signal if none were generated
     if (signals.length === 0) {
       if (Math.random() > 0.5) {
@@ -681,12 +770,16 @@ $(document).ready(() => {
     // Format data for Chart.js
     const labels = data.map((d) => {
       const date = new Date(d.time)
-      return date.toLocaleDateString()
+      return date.toLocaleTimeString()
     })
 
     const prices = data.map((d) => d.close)
     const sma20 = data.map((d) => d.sma20)
     const sma50 = data.map((d) => d.sma50)
+
+    // Value Area lines (horizontal)
+    const valueAreaLow = data[0].valueAreaLow
+    const valueAreaHigh = data[0].valueAreaHigh
 
     // Create chart
     priceChart = new Chart(ctx, {
@@ -739,6 +832,40 @@ $(document).ready(() => {
             position: "right",
             grid: {
               color: "rgba(0, 0, 0, 0.05)",
+            },
+            afterFit: (scaleInstance) => {
+              // Add value area lines if they exist
+              if (valueAreaLow && valueAreaHigh) {
+                const yScale = scaleInstance
+                const ctx = yScale.chart.ctx
+                const chartArea = yScale.chart.chartArea
+
+                // Draw Value Area Low line
+                const yPosLow = yScale.getPixelForValue(valueAreaLow)
+                ctx.save()
+                ctx.beginPath()
+                ctx.moveTo(chartArea.left, yPosLow)
+                ctx.lineTo(chartArea.right, yPosLow)
+                ctx.lineWidth = 1
+                ctx.strokeStyle = "rgba(255, 0, 0, 0.5)"
+                ctx.stroke()
+                ctx.fillStyle = "rgba(255, 0, 0, 0.8)"
+                ctx.fillText("VAL: " + valueAreaLow.toFixed(2), chartArea.left + 5, yPosLow - 5)
+                ctx.restore()
+
+                // Draw Value Area High line
+                const yPosHigh = yScale.getPixelForValue(valueAreaHigh)
+                ctx.save()
+                ctx.beginPath()
+                ctx.moveTo(chartArea.left, yPosHigh)
+                ctx.lineTo(chartArea.right, yPosHigh)
+                ctx.lineWidth = 1
+                ctx.strokeStyle = "rgba(0, 128, 0, 0.5)"
+                ctx.stroke()
+                ctx.fillStyle = "rgba(0, 128, 0, 0.8)"
+                ctx.fillText("VAH: " + valueAreaHigh.toFixed(2), chartArea.left + 5, yPosHigh - 5)
+                ctx.restore()
+              }
             },
           },
         },
@@ -799,13 +926,13 @@ $(document).ready(() => {
         description: "Bollinger Bands measure volatility and potential reversal points.",
       },
       {
-        name: "SMA Crossover",
+        name: "Value Area",
         value:
-          latestData.sma20 !== undefined && latestData.sma50 !== undefined
-            ? `20: ${latestData.sma20.toFixed(2)} / 50: ${latestData.sma50.toFixed(2)}`
+          latestData.valueAreaLow && latestData.valueAreaHigh
+            ? `VAL: ${latestData.valueAreaLow.toFixed(2)} / VAH: ${latestData.valueAreaHigh.toFixed(2)}`
             : "N/A",
-        interpretation: interpretSMACrossover(latestData.sma20 || 0, latestData.sma50 || 0),
-        description: "Simple Moving Average crossovers can indicate trend changes.",
+        interpretation: interpretValueArea(latestData.close, latestData.valueAreaLow, latestData.valueAreaHigh),
+        description: "Value Area represents the price range where 70% of the previous day's volume occurred.",
       },
     ]
 
@@ -848,6 +975,15 @@ $(document).ready(() => {
 
       $container.append(indicatorHtml)
     })
+  }
+
+  // Interpret Value Area
+  function interpretValueArea(price, val, vah) {
+    if (!val || !vah) return { type: "neutral", text: "Value Area not available" }
+
+    if (price < val) return { type: "bearish", text: "Price below Value Area Low" }
+    if (price > vah) return { type: "bullish", text: "Price above Value Area High" }
+    return { type: "neutral", text: "Price within Value Area" }
   }
 
   // Render trading signals
@@ -1004,4 +1140,3 @@ $(document).ready(() => {
   // Initial load
   loadData()
 })
-
