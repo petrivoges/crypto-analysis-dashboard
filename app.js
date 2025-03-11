@@ -912,6 +912,12 @@ $(document).ready(() => {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        plugins: {
+          // other plugins
+          annotation: {
+              annotations: annotations,
+          },
+        },
         scales: {
           x: {
             ticks: {
